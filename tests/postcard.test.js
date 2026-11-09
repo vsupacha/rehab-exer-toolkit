@@ -18,3 +18,10 @@ test('compositor draws photo into scene and exports flattened PNG, with demo pro
   assert.ok(texts.some(text=>text.includes('ข้อมูลจำลอง')));assert.deepEqual([canvas.width,canvas.height],[1600,900]);
   await assert.rejects(makePostcard(null,null));
 });
+test('watering achievement image uses the actual plants collected as rewards',async()=>{
+  const texts=[];
+  const c=new Proxy({createLinearGradient:()=>({addColorStop(){}}),fillText:t=>texts.push(t)}, {get:(target,key)=>target[key]??(()=>{})});
+  const canvas={getContext:()=>c,toDataURL:()=> 'data:image/png;base64,test'};
+  await makePostcard({motion:'spread',goal:2,source:'live',leader:'left',at:0,plants:[{emoji:'🌵'},{emoji:'🌺'}]},{url:'fixture'},{canvasFactory:()=>canvas,imageLoader:async()=>({width:960,height:540})});
+  assert.ok(texts.includes('🌵'));assert.ok(texts.includes('🌺'));assert.ok(!texts.includes('🌷'));assert.ok(texts.some(t=>t.includes('2 ต้นที่รดน้ำ')));
+});

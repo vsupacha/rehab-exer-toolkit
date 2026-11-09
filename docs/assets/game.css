@@ -7,3 +7,89 @@ main > .layout{display:block}.page-tabs{display:flex;gap:5px;border-bottom:1px s
 
 #completedBackdrop{position:absolute;inset:0;z-index:0;pointer-events:none}#completedBackdrop .completed-garden{height:100%;width:100%;margin:0;border-radius:0}#completedBackdrop .completed-garden .lanes{top:32%}#completedBackdrop .completed-garden[data-motion=lift] .lanes{top:24%}#completedBackdrop .completed-garden[data-motion=lift] .track{height:170px}#completionEmpty{position:absolute;left:12%;right:12%;top:30%;text-align:center;font-size:14px;color:var(--muted)}#completionSummary{font-size:13px;color:var(--green)}.photo-scene{background:#eaf0e5}.photo-scene #photoEmpty{z-index:1;top:70%;font-size:12px;background:#ffffffb3;padding:5px}.photo-scene #poseImage{z-index:2}
 .photo-scene #mergedPreview{position:relative;display:block;left:auto;bottom:auto;z-index:5;width:100%;height:auto;border:0;border-radius:0;box-shadow:none;background:transparent}.photo-scene.has-merged{height:auto;aspect-ratio:16/9}.photo-scene.has-merged>:not(#mergedPreview){display:none!important}#mergeStatus{font-size:13px;color:var(--green)}
+
+#calibrationPanel{max-width:1400px;margin:auto}#calibrationPanel>.panel{margin-bottom:20px}#calibrationPanel canvas{display:block;width:100%;min-height:240px;border:1px solid #c5d2ca;border-radius:8px;margin:12px 0 28px;background:white}body[data-page=calibration] .hero{padding:12px 0}body[data-page=calibration] .hero h1{font-size:24px}body[data-page=calibration] .hero p{display:none}.page-tabs{flex-wrap:wrap}@media(max-width:760px){.page-tabs button{padding:12px 8px;font-size:13px}#calibrationPanel canvas{min-height:180px}}
+
+.garden[data-motion=spread] .traveller{transition:none;will-change:left}
+.manual-threshold{margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}.manual-threshold h3{font-size:16px;margin:0 0 12px}.manual-threshold>label{display:inline-block;width:min(100%,300px);vertical-align:top;margin:0 18px 14px 0}.manual-threshold>button{margin:0 6px 8px 0}
+.activity-status{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:#edf3e9;border:1px solid #c7d7c8;border-radius:12px;padding:16px 20px;margin:14px 0}.activity-status>div>strong{display:block;font-size:24px;margin-top:6px}.activity-status>span{font-variant-numeric:tabular-nums;color:var(--muted)}.activity-status.is-moving{background:#e3eff8;border-color:#84abc5}.activity-status.is-moving #activityState{color:#265c80}.garden[data-measurement=activity] .target-zone{display:none}
+
+.garden[data-motion=lift] .traveller{transition:none;will-change:top}#startControlPanel .settings-action{margin-bottom:0}#startControlPanel #velocityControls>label{max-width:460px}
+
+/* The watering scene is state feedback, not a measured handle position. */
+.watering-scene{display:none;position:absolute;inset:45px 10% 35px;z-index:2}
+.garden[data-measurement=activity] .watering-scene{display:block}
+.garden[data-measurement=activity] .lanes{display:none}
+.watering-nozzle{position:absolute;top:0;bottom:43px;left:50%;width:140px;transform:translateX(-50%);will-change:left}
+.watering-nozzle>img{display:block;width:140px;height:auto;filter:drop-shadow(0 5px 3px #23434c20)}
+.water-stream{position:absolute;top:58px;bottom:0;left:32px;width:76px;height:calc(100% - 58px);opacity:0;overflow:visible}
+.water-stream path{fill:none;stroke:#419ac9;stroke-width:2;stroke-linecap:round;stroke-dasharray:4 7;animation:water-flow .65s linear infinite}
+.watering-scene[data-feedback=watering] .water-stream{opacity:.9}
+.flower-bed{position:absolute;bottom:12px;left:0;right:0;display:flex;justify-content:center;font-size:clamp(23px,3vw,38px);white-space:nowrap;letter-spacing:8px}
+.flower-bed{display:block;height:48px;letter-spacing:0}
+.plant-slot{position:absolute;bottom:0;transform:translateX(-50%);width:48px;height:48px;line-height:48px;text-align:center;border-radius:50%}
+.plant-slot.is-target{background:#fff9;box-shadow:0 0 0 2px #619c72}
+.plant-slot.is-collected::after{content:'';position:absolute;left:17px;bottom:6px;width:14px;height:5px;border-radius:50%;background:#6f8a6140}
+.garden[data-measurement=activity] .flowers{bottom:3px;left:3%;right:3%;height:34px;display:flex;align-items:center;gap:7px;padding:1px 10px;background:#ffffff9c;border-radius:10px;font-size:23px;letter-spacing:0;overflow-x:auto;white-space:nowrap}
+.reward-label{font-size:11px;font-weight:650;white-space:nowrap;margin-right:4px}
+.watering-caption{position:absolute;top:-24px;left:0;right:0;text-align:center;font-size:13px;font-weight:650;color:#286b58}
+.garden[data-measurement=activity] .garden-title{display:none}
+.watering-scene[data-feedback=moving] .watering-caption{color:#356782}
+@keyframes water-flow{to{stroke-dashoffset:-22}}
+.play-sidebar{min-width:0}
+.play-sidebar details>summary{padding:2px 0}
+.play-sidebar details[open]>summary{margin-bottom:12px}
+.play-sidebar .metrics{grid-template-columns:1fr;margin-top:12px}
+.play-sidebar .metric{margin-bottom:0}
+.threshold-help{grid-column:1/-1}
+.signal-options{grid-column:1/-1}.signal-options label{margin:8px 0;font-size:12px}.signal-options input[type=checkbox]{width:auto}
+@media(prefers-reduced-motion:reduce){.water-stream path{animation:none}}
+
+/* Fit the game to a 1366x768 screen, including normal browser chrome.
+   Only the diagnostic rail scrolls; the scene and buttons stay in place. */
+@media(min-width:1000px) and (min-height:520px){
+  body[data-page=play]{height:100dvh;overflow:hidden;display:flex;flex-direction:column;overflow-anchor:none}
+  body[data-page=play]>header{padding:5px 20px;font-size:10px;flex:none}
+  body[data-page=play]>main{width:100%;max-width:none;padding:8px 20px 12px;display:flex;flex-direction:column;flex:1;min-height:0}
+  body[data-page=play] .hero,body[data-page=play] footer{display:none}
+  body[data-page=play] .page-tabs{flex:none;flex-wrap:nowrap;margin:0 0 8px}
+  body[data-page=play] .page-tabs button{font-size:13px;padding:7px 18px}
+  body[data-page=play] main>.layout{flex:1;min-height:0;overflow:hidden}
+  body[data-page=play] #playPanel{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px;max-width:none;height:100%;min-height:0;align-items:stretch}
+  body[data-page=play] #playPanel>.game{display:flex;flex-direction:column;min-height:0;margin:0;padding:14px 16px}
+  body[data-page=play] .game-heading{flex:none;flex-wrap:nowrap;gap:10px}
+  body[data-page=play] .game-heading h2{font-size:20px;line-height:1.35;margin:3px 0}
+  body[data-page=play] #playSignalHint{flex:none;margin:3px 0;font-size:12px}
+  body[data-page=play] .activity-status{flex:none;margin:7px 0;padding:7px 12px;gap:10px}
+  body[data-page=play] .activity-status>div>strong{font-size:20px;margin:0}
+  body[data-page=play] .activity-status .eyebrow{font-size:9px;letter-spacing:1px}
+  body[data-page=play] #playPanel>.game>.garden{flex:1;min-height:170px;height:auto;margin-top:5px}
+  body[data-page=play] .garden-title{top:12px;left:18px}
+  body[data-page=play] .sun{top:6px;right:20px;font-size:35px}
+  body[data-page=play] .garden .lanes{top:30%}
+  body[data-page=play] .garden[data-motion=lift] .lanes{top:15%}
+  body[data-page=play] .garden[data-motion=lift] .track{height:120px}
+  body[data-page=play] .game-controls{flex:none;gap:6px;margin-top:10px}
+  body[data-page=play] .game-controls button{padding:7px 10px;font-size:12px}
+  body[data-page=play] #notice{flex:none;line-height:1.4;font-size:12px;min-height:17px;max-height:34px;overflow:auto;margin:6px 0 0}
+  body[data-page=play] #playSidebar{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:3px}
+  body[data-page=play] #playSidebar>.panel{padding:12px;margin:0 0 9px;border-radius:12px}
+  body[data-page=play] #liveVelocityPanel h2{font-size:15px;margin:0 0 5px}
+  body[data-page=play] #liveVelocityPanel>p{margin:4px 0;font-size:11px}
+  body[data-page=play] #liveVelocityY{display:block;width:100%;height:auto}
+  body[data-page=play] .manual-threshold{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px;padding-top:10px}
+  body[data-page=play] .manual-threshold h3,body[data-page=play] .manual-threshold>p{grid-column:1/-1;margin:0}
+  body[data-page=play] .manual-threshold h3{font-size:14px}
+  body[data-page=play] .manual-threshold>label{width:auto;display:block;margin:0;font-size:11px}
+  body[data-page=play] .manual-threshold input{padding:6px;margin-top:3px}
+  body[data-page=play] .manual-threshold>button{padding:7px 5px;margin:0;font-size:11px}
+  body[data-page=play] #thresholdHint{font-size:11px;line-height:1.4}
+  body[data-page=play] .threshold-help summary{font-size:11px}
+  body[data-page=play] .records-panel .game-heading{flex-wrap:wrap}
+  body[data-page=play] .records-panel .table-wrap{max-height:220px}
+}
+@media(min-width:1000px) and (max-width:1150px) and (min-height:520px){
+  body[data-page=play] #playPanel{grid-template-columns:minmax(0,1fr) 320px}
+  body[data-page=play]>main{padding-left:12px;padding-right:12px}
+  body[data-page=play] .game-heading h2{font-size:17px}
+}

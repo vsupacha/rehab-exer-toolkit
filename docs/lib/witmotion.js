@@ -80,7 +80,7 @@ export class WitMotion extends EventTarget {
     }
   }
   /** Call directly from a click. Opens the browser's device scan/permission chooser. */
-  async connect({allDevices = false, excludedDeviceIds = []} = {}) {
+  async connect({allDevices = false, namePrefix = null, excludedDeviceIds = []} = {}) {
     if (this.status !== 'disconnected') throw new Error('Disconnect the current session first.');
     if (!globalThis.isSecureContext) throw new Error('Use HTTPS or http://localhost for Bluetooth.');
     if (!this.bluetooth) throw new Error('Web Bluetooth is unavailable. Open this page in desktop Chrome or Edge.');
@@ -90,7 +90,7 @@ export class WitMotion extends EventTarget {
     this._status('selecting');
     try {
       const device = await this.bluetooth.requestDevice({
-        ...(allDevices ? {acceptAllDevices: true} : {filters: [{services: [UUID.service]}, {namePrefix: 'WT'}, {namePrefix: 'Wit'}, {namePrefix: 'BWT'}]}),
+        ...(allDevices ? {acceptAllDevices: true} : {filters: namePrefix ? [{namePrefix}] : [{services: [UUID.service]}, {namePrefix: 'WT'}, {namePrefix: 'Wit'}, {namePrefix: 'BWT'}]}),
         optionalServices: [UUID.service],
       });
       if (generation !== this._generation) return;
@@ -135,11 +135,26 @@ export class WitMotion extends EventTarget {
   _receive(value) {
     const raw = new Uint8Array(value.buffer, value.byteOffset, value.byteLength).slice();
     this._emit('raw', raw);
-    for (const frame of this.decoder.push(raw)) {
-      this._emit('data', {...frame, receivedAt: Date.now(), monotonicMs: performance.now()});
+    const frames=this.decoder.push(raw),receivedAt=Date.now(),monotonicMs=performance.now();
+    for (const [batchIndex,frame] of frames.entries()) {
+      this._emit('data', {...frame, receivedAt,monotonicMs,batchIndex,batchSize:frames.length});
     }
   }
-  /** Read-only query; does not unlock, calibrate, save, or change sensor settings. */
+  // WIT official BLE 5.0 protocol: FF AA 03 RATE 00. Explicit user action only;
+  // no save/reset/calibration command. A successful write is not rate verification.
+  async setOutputRate(hz) {
+    const codes={10:0x06,20:0x07,50:0x08,100:0x09};
+    if(!Object.hasOwn(codes,hz))throw new RangeError('Supported rates: 10, 20, 50, 100 Hz.');
+    if(this.status!=='connected'||!this.writer)throw new Error('Connect a sensor with FFE9 first.');
+    if(this._reading)throw new Error('A register operation is already in progress.');
+    this._reading=true;
+    try {
+      const command=Uint8Array.of(0xff,0xaa,0x03,codes[hz],0);
+      if(this.writer.properties.write)await this.writer.writeValueWithResponse(command);
+      else await this.writer.writeValueWithoutResponse(command);
+    } finally {this._reading=false;}
+  }
+  /** Read-only register query. */
   async readRegister(register) {
     if (![0x3a, 0x51].includes(register)) throw new RangeError('Supported reads: 0x3A and 0x51.');
     if (this.status !== 'connected' || !this.writer) throw new Error('Connect a sensor with the FFE9 write characteristic first.');

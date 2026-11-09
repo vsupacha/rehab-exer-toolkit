@@ -129,3 +129,31 @@ test('two clients keep streams independent and disconnecting left preserves righ
   assert.deepEqual([l, r], [1, 2]); assert.equal(right.device.gatt.connected, true);
   assert.equal(right.client.status, 'connected'); right.client.disconnect();
 });
+
+test('name lock uses only prefix filter and all-devices fallback is explicit', async () => {
+  globalThis.isSecureContext=true;
+  const options=[];
+  const client=new WitMotion({bluetooth:{requestDevice:async input=>{options.push(input);throw new DOMException('Cancelled','NotFoundError');}}});
+  await assert.rejects(client.connect({namePrefix:'WT901'}));
+  assert.deepEqual(options[0].filters,[{namePrefix:'WT901'}]);
+  assert.ok(options[0].optionalServices.includes(UUID.service));
+  assert.equal(options[0].acceptAllDevices,undefined);
+  await assert.rejects(client.connect({namePrefix:'WT901',allDevices:true}));
+  assert.equal(options[1].acceptAllDevices,true);assert.equal(options[1].filters,undefined);
+});
+
+test('output-rate command is explicit, validates rates and never saves configuration',async()=>{
+  const client=new WitMotion();const commands=[];
+  await assert.rejects(client.setOutputRate(50));
+  client.status='connected';client.writer={properties:{write:true},writeValueWithResponse:async bytes=>commands.push([...bytes])};
+  await client.setOutputRate(50);await client.setOutputRate(10);
+  assert.deepEqual(commands,[[255,170,3,8,0],[255,170,3,6,0]]);
+  await assert.rejects(client.setOutputRate(123));assert.equal(commands.length,2);
+});
+
+test('coalesced motion packets carry shared host time and explicit batch metadata',()=>{
+  const client=new WitMotion(),frames=[];client.addEventListener('data',event=>frames.push(event.detail));
+  const bytes=new Uint8Array([...motion(),...motion()]);client._receive(new DataView(bytes.buffer));
+  assert.equal(frames.length,2);assert.equal(frames[0].monotonicMs,frames[1].monotonicMs);
+  assert.deepEqual(frames.map(f=>[f.batchIndex,f.batchSize]),[[0,2],[1,2]]);
+});
