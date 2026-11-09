@@ -1,8 +1,7 @@
-import {SlopeTracker,inspectSlope,learnSlope,slopeConfig} from '../lib/slope.js?v=20261109-30';
+import {SlopeTracker,inspectSlope,learnSlope,slopeConfig,DEFAULT_HIGH,DEFAULT_LOW} from '../lib/slope.js?v=20261109-32';
 import {ThresholdInputState,applyThresholdPair,defaultVelocityAxis} from '../lib/game-controls.js?v=20261109-30';
 import {WateringVisual,PlantRewards} from '../lib/watering.js?v=20261109-31';
-import {stationaryProfile} from '../lib/zero.js?v=20261109-21';
-import {drawSlope} from '../lib/trace.js?v=20261109-27';
+import {drawSlope} from '../lib/trace.js?v=20261109-32';
 import {WitMotion} from '../lib/witmotion.js?v=20261109-21';
 import {meanPose, calibrate, project, RepTracker} from '../lib/exercise.js?v=20261108-3';
 import {LocalCamera} from '../lib/camera.js?v=20261108-3';
@@ -19,7 +18,6 @@ const phaseLabel = arm => activityMode() ? activityLabels[arm.tracker.state] || 
 const labels = {await_home:'กลับจุดเริ่ม',ready:'พร้อมออกไป',outbound:'ไปถึงเป้า',target:'กลับจุดเริ่ม',returning:'กลับจุดเริ่ม'};
 const arms = {};
 let rateChanging=false;
-let zeroing = null;
 const thresholdSetting = new ThresholdInputState();
 const lowThresholdSetting = new ThresholdInputState();
 function resetSlopeThresholds(){thresholdSetting.reset();lowThresholdSetting.reset();}
@@ -93,11 +91,11 @@ function publishPhoto(photo) {
 const selected = () => $('participants').value === 'both' ? ['left','right'] : [$('participants').value];
 const leader = () => $('leader').value;
 const now = () => performance.now();
-const inSession = () => ['zeroing','running','paused','finishing'].includes(stage);
+const inSession = () => ['running','paused','finishing'].includes(stage);
 const fresh = arm => (demo || arm.sensor.status === 'connected') && arm.frame && now() - arm.frame.monotonicMs <= 500;
 const allFresh = () => selected().every(id => fresh(arms[id]));
 const sensitivity = () => Number($('sensitivity').value);
-const slopeOptions=()=>({axis:$('velocityAxis').value,reverse:$('reverseVelocity').checked,high:thresholdSetting.value??1.5/sensitivity(),low:lowThresholdSetting.value??.5/sensitivity()});
+const slopeOptions=()=>({axis:$('velocityAxis').value,reverse:$('reverseVelocity').checked,high:thresholdSetting.value??DEFAULT_HIGH,low:lowThresholdSetting.value??DEFAULT_LOW});
 const tuned = cal => slopeConfig(cal,slopeOptions());
 const allCalibrated = () => activityMode() || selected().every(id => arms[id].cal);
 const say = text => { $('notice').textContent = text; };
@@ -124,16 +122,16 @@ function invalidate() {
   $('calibration').textContent = 'บันทึกท่าเริ่มและท่าปลายสำหรับ baseline ของท่านี้';
   $('calibrationDetails').textContent = '';
 }
-function pause(reason = 'พักแล้ว กลับจุดเริ่มก่อนเริ่มต่อ') {
-  if (!['running','zeroing'].includes(stage)) return;
+function pause(reason = 'หยุดชั่วคราว กดเริ่มต่อเมื่อพร้อม') {
+  if (stage!=='running') return;
   if(stage==='running')accumulated += now() - runStart;
-  zeroing=null;stage = 'paused';
+  stage = 'paused';
   Object.values(arms).forEach(arm => arm.tracker.reset());
   say(reason); updateControls();
 }
 function finish(reason = 'จบรอบฝึกแล้ว ดูสรุปหรือดาวน์โหลดข้อมูลได้') {
   if (stage === 'running') accumulated += now() - runStart;
-  zeroing=null;stage = 'finished'; Object.values(arms).forEach(arm => arm.tracker.reset());
+  stage = 'finished'; Object.values(arms).forEach(arm => arm.tracker.reset());
   saveCompletedScene();
   say(reason); updateControls();
 }
@@ -182,11 +180,11 @@ function updateControls() {
   $('baselineTitle').textContent = activityMode() ? '3 · ตั้งค่าตรวจการเคลื่อนไหว' : '3 · บันทึก baseline ครั้งแรก';
   $('baselineHint').textContent = activityMode() ? 'Cal 30 วินาที เริ่มจากพัก ทำเคลื่อน → พักซ้ำ ระบบใช้ EMA 50 ms และ slope 10 จุด ไม่คำนวณความเร็ว' : 'ค้างจุดเริ่มและจุดปลายนิ่งประมาณ 1 วินาที แล้วบันทึก 0% และ 100%';
   $('target').disabled = locked || !allFresh() || !selected().every(id => arms[id].home);
-  $('start').disabled = ['zeroing','running','finishing'].includes(stage) || !allFresh() || !allCalibrated() || Boolean(teaching);
+  $('start').disabled = ['running','finishing'].includes(stage) || !allFresh() || !allCalibrated() || Boolean(teaching);
   $('start').textContent = stage === 'paused' ? 'เริ่มต่อ' : stage === 'finished' ? 'เริ่มรอบฝึกใหม่' : 'เริ่มปลูกสวน';
   $('startFromSettings').disabled = $('start').disabled;
   $('startFromSettings').textContent = activityMode() ? 'ไปหน้าเล่น / ปรับ threshold →' : stage === 'paused' ? 'กลับไปเล่นต่อ →' : stage === 'finished' ? 'เริ่มรอบฝึกใหม่ →' : 'เริ่มเกม →';
-  $('pause').disabled = !['running','zeroing'].includes(stage); $('finish').disabled = !locked;
+  $('pause').disabled = stage!=='running'; $('finish').disabled = !locked;
   $('export').disabled = records.length === 0;
   $('endFromSettings').hidden = !inSession();
   $('settingsHint').textContent = activityMode() ? 'ตั้ง High / Low ในหน้าเล่นได้เลย ไม่ต้อง Cal' : stage === 'paused' ? 'พักอยู่ กลับไปเล่นต่อหรือจบรอบนี้เพื่อตั้งค่า' : 'เมื่อ baseline พร้อม กดเริ่มเกมเพื่อไปหน้าเล่น';
@@ -204,7 +202,6 @@ function receive(id, frame) {
   const arm = arms[id];arm.timing??={last:null,maxGap:0,duplicates:0};if(arm.timing.last!==null){const gap=frame.monotonicMs-arm.timing.last;arm.timing.maxGap=Math.max(arm.timing.maxGap,gap);if(gap===0)arm.timing.duplicates++;}arm.timing.last=frame.monotonicMs;arm.frame = frame;
   if(teaching && teaching.ids.includes(id)) teaching.frames[id].push(frame);
   arm.samples.push(frame); arm.samples = arm.samples.filter(f => frame.monotonicMs - f.monotonicMs <= 650);
-  if(stage==='zeroing'){if(zeroing?.frames[id])zeroing.frames[id].push(frame);return;}
   if(activityMode() && arm.cal && !['running','finishing'].includes(stage)){arm.tracker.update(frame);sampleLiveVelocity(arm,frame);}
   if (!['running','finishing'].includes(stage) || !selected().includes(id) || !arm.cal) return;
   if (stage === 'finishing' && id === session.leader) return;
@@ -322,7 +319,7 @@ async function changeOutputRate(hz){
       try{await arm.sensor.setOutputRate(hz);addLog(arm,'ส่งคำสั่ง '+hz+' Hz แล้ว ตรวจอัตรารับจริงก่อนสอนใหม่');}
       catch(error){addLog(arm,error.message);errors.push(error.message);}
     }
-    $('calibration').textContent=errors.length?errors.join(' / '):'ส่งคำสั่ง '+hz+' Hz แล้ว ตรวจ Hz ที่รับจริง จากนั้นตั้งศูนย์และสอนใหม่';
+    $('calibration').textContent=errors.length?errors.join(' / '):'ส่งคำสั่ง '+hz+' Hz แล้ว ตรวจ Hz ที่รับจริง จากนั้นเริ่มเกมได้เลย';
   }finally{rateChanging=false;updateControls();}
 }
 $('setRate50').addEventListener('click',()=>changeOutputRate(50));
@@ -363,13 +360,12 @@ $('start').addEventListener('click', () => {
     session = {motion:$('motion').value,leader:leader(),goal,source:demo ? 'demo' : 'live'};
     if(activityMode())resetPlants(goal);
   }
-  Object.values(arms).forEach(arm => { arm.tracker = activityMode() && arm.cal ? new SlopeTracker(tuned(arm.cal)) : new RepTracker({targetThreshold:target,homeThreshold:home,targetDwellMs:0}); arm.peakPhoto=null; arm.photoPeak=0;arm.liveVelocity=[]; });
-  runStart = now();stage=activityMode()?'zeroing':'running';
-  zeroing=activityMode()?{start:now(),ids:[...selected()],frames:Object.fromEntries(selected().map(id=>[id,[]]))}:null;
+  runStart=now();
+  Object.values(arms).forEach(arm => { arm.tracker = activityMode() && arm.cal ? new SlopeTracker(tuned(arm.cal)) : new RepTracker({targetThreshold:target,homeThreshold:home,targetDwellMs:0}); if(activityMode()&&arm.cal)arm.tracker.startMoving(runStart); arm.peakPhoto=null; arm.photoPeak=0;arm.liveVelocity=[]; });
+  stage='running';
   showTab('play', true);
   say('กลับจุดเริ่มก่อน แล้วไปถึงเป้า ≥' + (target * 100).toFixed(0) + '% และกลับ ≤' + (home * 100).toFixed(0) + '% · ไม่ต้องค้างปลายท่า');
-  if(activityMode()) say('หยุดรดต้นไม้เพื่อเก็บต้นนั้น · เลื่อนไปหาต้นที่ยังไม่ได้เก็บ');
-  if(stage==='zeroing')say('ค้างมือจับนิ่ง 1.5 วินาที กำลังเตรียมสถานะพัก ก่อนเริ่มจับเวลา');
+  if(activityMode()) say('เคลื่อนได้เลย · หยุดรดต้นไม้เพื่อเก็บต้นนั้น');
   updateControls();
 });
 const refreshVelocitySettings=()=>{
@@ -460,13 +456,13 @@ $('demo').addEventListener('click', () => {
     for (const [id,arm] of Object.entries(arms)) {
       const span = mode.span * (id === 'right' ? -.9 : 1);
       const angles = id === 'left' ? [5,10,-5] : [-5,8,4]; angles[mode.axis] += span * p;
-      receive(id,{type:'motion',angles,acceleration:(()=>{const q=teaching?(t-teaching.start)/1000:(t-runStart)/1000,a=[0,0,1],axis=$('velocityAxis').value==='auto'?1:'XYZ'.indexOf($('velocityAxis').value);a[axis]+=(stage==='zeroing'||teaching?.kind==='noise'?0:(()=>{const p=q%7;return p<1?0:p<2.5?-.015*(p-1):p<3?-.0225:p<4.5?-.0225+.015*(p-3):0;})())*(id==='right'?-1:1);return a;})(),monotonicMs:t,receivedAt:Date.now()});
+      receive(id,{type:'motion',angles,acceleration:(()=>{const q=teaching?(t-teaching.start)/1000:(t-runStart)/1000,a=[0,0,1],axis=$('velocityAxis').value==='auto'?1:'XYZ'.indexOf($('velocityAxis').value);a[axis]+=(teaching?.kind==='noise'?0:(()=>{const p=q%7;return p<1?0:p<2.5?-.4*(p-1):p<3?-.6:p<4.5?-.6+.4*(p-3):0;})())*(id==='right'?-1:1);return a;})(),monotonicMs:t,receivedAt:Date.now()});
     }
   },100);
   updateControls();
 });
 $('export').addEventListener('click', () => {
-  const keys = ['timestamp','source','motion','role','arm','rep','outbound_s','return_s','cycle_s','angle_range_deg','baseline_deg','baseline_percent','measurement','movement_s','peak_acceleration_g','threshold_g','peak_velocity_cm_s','threshold_cm_s','peak_slope_mg_s','high_slope_mg_s','low_slope_mg_s','axis','reverse','velocity_axis','velocity_reversed','threshold_mode','pattern_score','direction_changes','sensitivity'];
+  const keys = ['timestamp','source','motion','role','arm','rep','outbound_s','return_s','cycle_s','angle_range_deg','baseline_deg','baseline_percent','measurement','initial_movement_assumed','movement_s','peak_acceleration_g','threshold_g','peak_velocity_cm_s','threshold_cm_s','peak_slope_mg_s','high_slope_mg_s','low_slope_mg_s','axis','reverse','velocity_axis','velocity_reversed','threshold_mode','pattern_score','direction_changes','sensitivity'];
   const quote = value => '"' + String(value).replaceAll('"','""') + '"';
   const csv = '\ufeff' + [keys,...records.map(row => keys.map(key => row[key] ?? ''))].map(row => row.map(quote).join(',')).join('\r\n');
   const url = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
@@ -475,16 +471,7 @@ $('export').addEventListener('click', () => {
 });
 setInterval(() => {
   if (stage === 'finishing' && now() - completeAt >= 500) finish(session.motion!=='twist'?'สวนสำเร็จแล้ว! รดน้ำเก็บต้นไม้ครบ '+session.goal+' ต้น':'สวนสำเร็จแล้ว! แขนที่ขับกลไกเคลื่อนครบ '+session.goal+' รอบ');
-  if (['running','zeroing'].includes(stage) && !allFresh()) pause('ข้อมูลขาดช่วง พักการนับไว้ กลับจุดเริ่มแล้วกดเริ่มต่อเมื่อสัญญาณพร้อม');
-  if(stage==='zeroing'&&zeroing&&now()-zeroing.start>=1500){
-    const captured=zeroing;
-    try{
-      if(document.hidden||!allFresh())throw new Error('ข้อมูลขาดช่วงระหว่างตั้งศูนย์');
-      const refs=Object.fromEntries(captured.ids.map(id=>[id,stationaryProfile(captured.frames[id])]));
-      for(const id of captured.ids){arms[id].tracker=new SlopeTracker({...tuned(arms[id].cal),...refs[id]});addLog(arms[id],'ตั้งศูนย์ก่อนเริ่มแล้ว: เริ่ม slope ใหม่จากสถานะพัก');}
-      zeroing=null;runStart=now();stage='running';say('ตั้งศูนย์แล้ว เริ่มเคลื่อนไหวได้');
-    }catch(error){zeroing=null;stage='paused';say(error.message+' · ค้างให้นิ่งแล้วกดเริ่มต่อ');}
-  }
+  if (stage==='running' && !allFresh()) pause('ข้อมูลขาดช่วง พักการนับไว้ กดเริ่มต่อเมื่อสัญญาณพร้อม');
   if((teaching||lastTeaching)&&now()-lastPlot>=250){
     lastPlot=now();const capture=teaching||lastTeaching,id=leader();
     const analysis=inspectSlope(capture.frames[id]||[],capture.start,slopeOptions());calPreview=analysis;
@@ -505,12 +492,12 @@ setInterval(() => {
         $('calibrationDetails').textContent='EMA 50 ms · slope 10 จุด · ตรวจขนาดทั้งบวกและลบ · พัก → เคลื่อน → พัก';
       }catch(error){invalidate();$('calibration').textContent=error.message;}
     } else if(teaching) {
-      $('calibration').textContent=(teaching.phase==='zeroing'?'ค้างมือจับนิ่งเพื่อตั้งศูนย์ก่อนสอน':teaching.kind==='noise'?'วางอุปกรณ์นิ่ง':'ทำพัก → เคลื่อน → พักซ้ำ')+' · เหลือ '+Math.ceil(((teaching.duration||30000)-elapsed)/1000)+' วินาที';
+      $('calibration').textContent=(teaching.kind==='noise'?'วางอุปกรณ์นิ่ง':'ทำพัก → เคลื่อน → พักซ้ำ')+' · เหลือ '+Math.ceil(((teaching.duration||30000)-elapsed)/1000)+' วินาที';
     }
   }
   const driver = arms[leader()];
   $('liveVelocityPanel').hidden=!activityMode();
-  if(activityMode()){const samples=driver.liveVelocity,first=samples[0]?.time||now();drawSlope($('liveVelocityY'),samples.map(s=>({elapsedMs:s.time-first,value:s.signed})),driver.tracker.threshold||1.5,driver.tracker.lowThreshold||.5,$('velocityAxis').value,8000);$('liveAxisLabel').textContent=$('velocityAxis').value;$('liveVelocityYValue').textContent=fresh(driver)&&driver.tracker.ready?driver.tracker.signed.toFixed(2)+' mg/s':'รอครบ 10 จุด';}
+  if(activityMode()){const samples=driver.liveVelocity,first=samples[0]?.time||now();drawSlope($('liveVelocityY'),samples.map(s=>({elapsedMs:s.time-first,value:s.signed})),driver.tracker.threshold??DEFAULT_HIGH,driver.tracker.lowThreshold??DEFAULT_LOW,$('velocityAxis').value,8000);$('liveAxisLabel').textContent=$('velocityAxis').value;$('liveVelocityYValue').textContent=fresh(driver)&&driver.tracker.ready?driver.tracker.signed.toFixed(2)+' mg/s':'รอครบ 10 จุด';}
 
   const visual = activityMode() ? .5 : fresh(driver) && driver.cal ? Math.max(0,Math.min(1,project(driver.frame,driver.cal))) : 0;
   for (const [id,arm] of Object.entries(arms)) {
@@ -527,7 +514,7 @@ setInterval(() => {
       arm.values.progress.textContent=valid ? arm.tracker.ready?Math.abs(arm.tracker.signed).toFixed(2)+' mg/s':'รอครบ 10 จุด' : '—';
       arm.values.percent.textContent=arm.last ? (arm.last.peak_slope_mg_s||0).toFixed(2)+' mg/s (สูงสุด)' : '—';
       arm.values.signed.textContent=valid ? 'ความเร่ง XYZ (รวมแรงโน้มถ่วง) '+arm.frame.acceleration.map(v=>v.toFixed(3)).join(', ')+' g' : '—';
-      arm.values.range.textContent='เคลื่อน ≥'+(arm.tracker.threshold||1.5).toFixed(2)+' / พัก ≤'+(arm.tracker.lowThreshold||.5).toFixed(2)+' mg/s · '+phaseLabel(arm);
+      arm.values.range.textContent='เคลื่อน ≥'+(arm.tracker.threshold??DEFAULT_HIGH).toFixed(2)+' / พัก ≤'+(arm.tracker.lowThreshold??DEFAULT_LOW).toFixed(2)+' mg/s · '+phaseLabel(arm);
       arm.values.phase.textContent=!valid ? 'รอข้อมูล IMU สด' : stage==='running' ? phaseLabel(arm)+(arm.tracker.started===null?'':' · '+((now()-arm.tracker.started)/1000).toFixed(1)+' s') : 'นับหนึ่งช่วงเมื่อเคลื่อนแล้วกลับมาพัก';
     }
     const lane = document.querySelector('.lane[data-side="' + id + '"]');
@@ -547,15 +534,14 @@ setInterval(() => {
   $('activityTableHint').hidden=!activityMode();
   $('summary').textContent = primary.length ? (primary[0].source === 'demo' ? '[ข้อมูลจำลอง] ' : '[ข้อมูล IMU] ') + modes[primary[0].motion].name + ' · แขนขับกลไก ' + primary.length + ' รอบ · เวลารอบเฉลี่ย ' + (primary.reduce((sum,row) => sum + row.cycle_s,0) / primary.length).toFixed(2) + ' วินาที · บันทึกทั้งสองฝั่งรวม ' + records.length + ' รายการ' : 'ยังไม่มีรอบที่เสร็จสมบูรณ์';
   if(activityMode()) {
-    $('instruction').textContent=stage==='running' ? (driver.tracker.ready?(driver.tracker.state==='moving'?'เลื่อนฝักบัว · หยุดน้ำ':'พักมือจับ · กำลังรดน้ำ'):'ค้างนิ่ง · รอข้อมูล 10 จุด') : stage==='paused'?'หยุดชั่วคราว · กดเริ่มต่อเมื่อพร้อม':stage==='finished'?'จบรอบฝึกแล้ว':stage==='finishing'?'ครบเป้าหมายแล้ว':'พักรดน้ำ → เคลื่อนย้าย → พักรดน้ำ';
+    $('instruction').textContent=stage==='running' ? (driver.tracker.ready?(driver.tracker.state==='moving'?'เลื่อนฝักบัว · หยุดน้ำ':'พักมือจับ · กำลังรดน้ำ'):'เคลื่อนได้เลย · กำลังอ่านสัญญาณ') : stage==='paused'?'หยุดชั่วคราว · กดเริ่มต่อเมื่อพร้อม':stage==='finished'?'จบรอบฝึกแล้ว':stage==='finishing'?'ครบเป้าหมายแล้ว':'พักรดน้ำ → เคลื่อนย้าย → พักรดน้ำ';
     $('summary').textContent='ได้ต้นไม้ '+plantRewards.earned.length+' ต้น · '+primary.length+' ช่วงเคลื่อนไหว · รวม '+primary.reduce((n,r)=>n+r.movement_s,0).toFixed(2)+' วินาที';
   }
-  const moving=stage==='running'&&fresh(driver)&&driver.tracker.ready&&driver.tracker.state==='moving';
-  $('activityState').textContent=stage==='zeroing'?'เตรียมตัว · ค้างนิ่ง':stage==='paused'?'หยุดชั่วคราว':stage==='finished'?'จบรอบฝึก':stage==='finishing'?'ครบเป้าหมาย':stage==='running'?(driver.tracker.ready?(moving?'เคลื่อน · ไม่รดน้ำ':'พัก · รดน้ำ'):'รอข้อมูล 10 จุด'):'พร้อมเริ่ม';
+  const moving=stage==='running'&&fresh(driver)&&driver.tracker.state==='moving';
+  $('activityState').textContent=stage==='paused'?'หยุดชั่วคราว':stage==='finished'?'จบรอบฝึก':stage==='finishing'?'ครบเป้าหมาย':stage==='running'?(moving?'เคลื่อน · ไม่รดน้ำ':driver.tracker.ready?'พัก · รดน้ำ':'กำลังอ่านสัญญาณ'):'พร้อมเริ่ม';
   $('activityStatus').classList.toggle('is-moving',moving);
   $('movementElapsed').textContent='ช่วงนี้ '+(moving&&driver.tracker.started!==null?((now()-driver.tracker.started)/1000).toFixed(1):'0.0')+' วินาที';
   $('boutGoal').textContent=plantRewards.earned.length+' / '+plantRewards.goal+' ต้น';
-  if(stage==='zeroing'){const remaining=Math.max(0,(1500-(now()-zeroing.start))/1000);$('instruction').textContent='ค้างมือจับนิ่ง · ตั้งศูนย์ '+remaining.toFixed(1)+' s';$('notice').textContent='ยังไม่จับเวลาและไม่นับ กำลังเตรียมเริ่มสถานะพัก';for(const id of selected()){arms[id].values.progress.textContent='ตั้งศูนย์…';arms[id].values.phase.textContent='อย่าขยับมือจับจนกว่าจะเริ่ม';}}
   updateControls();
 },100);
 $('support').textContent = navigator.bluetooth && isSecureContext ? 'ใช้ Chrome / Edge · เลือกทีละเซนเซอร์' : 'เบราว์เซอร์นี้ยังใช้ BLE ไม่ได้ ลองข้อมูลจำลอง หรือเปิด Chrome / Edge ผ่าน HTTPS / localhost';
@@ -568,7 +554,7 @@ let visualFrame;
 function animateVelocity(time){
   if(activityMode()){
     const arm=arms[leader()],tracker=arm.tracker;
-    const active=stage==='running'&&fresh(arm)&&Boolean(arm.cal)&&tracker.ready&&!document.hidden;
+    const active=stage==='running'&&fresh(arm)&&Boolean(arm.cal)&&(tracker.ready||tracker.state==='moving')&&!document.hidden;
     const feedback=wateringVisual.update({state:tracker.state,time,active});
     const previousRow=plantRewards.row;
     const reward=plantRewards.update(feedback);

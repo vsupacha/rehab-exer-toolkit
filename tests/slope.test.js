@@ -1,7 +1,25 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {SlopeTracker,slopeConfig,inspectSlope,learnSlope} from '../docs/lib/slope.js';
-const cal=()=>slopeConfig({usable:true});
+import {WateringVisual,PlantRewards} from '../docs/lib/watering.js';
+const cal=()=>slopeConfig({usable:true},{high:1.5,low:.5});
+test('Start and Resume move immediately without stationary calibration and water only after valid Low hold',()=>{
+  const tracker=new SlopeTracker(slopeConfig({usable:true}));
+  assert.equal(tracker.threshold,200);assert.equal(tracker.lowThreshold,50);
+  for(const start of [0,3000]){
+    tracker.startMoving(start);const visual=new WateringVisual(),rewards=new PlantRewards();
+    assert.equal(tracker.state,'moving');assert.equal(tracker.ready,false);
+    let result;
+    for(let i=0;i<=11;i++){
+      const time=start+i*100;result=tracker.update({monotonicMs:time,acceleration:[0,.04,1]});
+      const feedback=visual.update({time,active:tracker.ready||tracker.state==='moving',state:tracker.state});
+      rewards.update(feedback);
+      if(i<11){assert.equal(tracker.state,'moving');assert.equal(feedback.watering,false);assert.equal(rewards.earned.length,0);}
+    }
+    assert.equal(tracker.state,'rest');assert.equal(rewards.earned.length,1);
+    assert.equal(result.initial_movement_assumed,true);assert.equal(result.movement_s,1.1);
+  }
+});
 test('EMA+10point slope rejects constant offset without deadband or velocity integration',()=>{
   const tracker=new SlopeTracker(cal());
   for(let t=0;t<=30000;t+=100){assert.equal(tracker.update({monotonicMs:t,acceleration:[-.2,.04,1]}),null);if(t>=900)assert.ok(Math.abs(tracker.signed)<1e-10);}
@@ -34,13 +52,13 @@ test('fixed X and reversed Y use correct slope; Cal requires full30s',()=>{
 });
 test('Cal preview reports FSM state and count; invalid thresholds cannot enter tracker',()=>{
   const frames=Array.from({length:301},(_,i)=>{const p=(i/10)%7;return {monotonicMs:i*100,acceleration:[0,.04+(p<1?0:p<2.5?-.015*(p-1):p<3?-.0225:p<4.5?-.0225+.015*(p-3):0),1]};});
-  const result=learnSlope(frames,0);
+  const result=learnSlope(frames,0,{high:1.5,low:.5});
   assert.equal(result.count,4);assert.equal(result.state,'moving');
   for(const options of [{high:Infinity},{low:NaN},{high:.3,low:.5}])assert.throws(()=>slopeConfig({usable:true},options));
 });
 test('streaming one-way acceleration trend followed by rest records one timed bout for either mount sign',()=>{
   for(const reverse of [false,true]){
-    const tracker=new SlopeTracker(slopeConfig({usable:true},{reverse})),records=[];
+    const tracker=new SlopeTracker(slopeConfig({usable:true},{reverse,high:1.5,low:.5})),records=[];
     for(let i=0;i<80;i++){
       const result=tracker.update({monotonicMs:i*100,acceleration:[0,.04+.002*Math.max(0,Math.min(10,i-20)),1]});
       if(result)records.push(result);

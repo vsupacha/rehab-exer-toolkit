@@ -1,4 +1,5 @@
 // Diagnostic plot with autoscaled signed XYZ, learned-axis projection and RMS.
+import {DEFAULT_HIGH,DEFAULT_LOW} from './slope.js?v=20261109-32';
 export function drawTrace(canvas, analysis, {unit='g',onlyY=false,axisName='Y',slope=false}={}) {
   const c=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
   c.clearRect(0,0,w,h);c.fillStyle='#fff';c.fillRect(0,0,w,h);
@@ -22,7 +23,7 @@ export function drawTrace(canvas, analysis, {unit='g',onlyY=false,axisName='Y',s
     c.fillStyle=color;c.fillText(name,left+i*120,h-5);
   });
 }
-export function drawSlope(canvas,samples,high=1.5,low=.5,axis='Y',durationMs=30000){
+export function drawSlope(canvas,samples,high=DEFAULT_HIGH,low=DEFAULT_LOW,axis='Y',durationMs=30000){
   const training=samples.filter(s=>Number.isFinite(s.value)).map(s=>({elapsedMs:s.elapsedMs,filtered:[0,s.value,0],signed:s.value,rms:0}));
   drawTrace(canvas,{training,threshold:high,low,durationMs},{unit:'mg/s',onlyY:true,axisName:axis,slope:true});
 }
