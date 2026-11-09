@@ -1,0 +1,5 @@
+<!doctype html><html lang="th"><meta charset="utf-8"><title>Postcard composition check</title><style>body{font:16px system-ui;background:#f5f5ed;margin:20px}img{max-width:100%}</style><h1>ภาพทดสอบการรวม PNG · ไม่มีภาพบุคคลจริง</h1><p id="status">กำลังสร้าง…</p><img id="result" alt="PNG รวมฉากและภาพทดสอบ"><script type="module">
+import {makePostcard} from '../../docs/lib/postcard.js';
+const svg='<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540"><rect width="960" height="540" fill="#f3d6ad"/><circle cx="480" cy="150" r="55" fill="#568674"/><path d="M480 210V410M480 260L260 120M480 260L700 120" stroke="#568674" stroke-width="30" stroke-linecap="round"/><text x="480" y="495" text-anchor="middle" font-size="40" fill="#213e39">TEST PHOTO</text></svg>';
+try {document.querySelector('#result').src=await makePostcard({motion:'spread',goal:5,source:'demo',leader:'left',at:Date.now()},{url:'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)});document.querySelector('#status').textContent='PNG พร้อมแล้ว · ฉากและรูปอยู่ในภาพเดียว';} catch(e) {document.querySelector('#status').textContent=e.message;}
+</script></html>

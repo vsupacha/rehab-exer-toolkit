@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Compare two WIT-Motion sensors for Arm Booster.">
+<title>Movement Lab · Two-arm comparison</title><link rel="icon" href="data:,"><link rel="stylesheet" href="./assets/style.css?v=20261103-3"></head>
+<body><header><a class="brand" href="./">↗ <span>MOVEMENT LAB</span></a><span class="project">REHAB EXERCISE TOOLKIT / 01</span></header><main>
+<div class="intro"><div><p class="eyebrow">ARM BOOSTER · TWO SENSOR CHECK</p><h1>Two arms.<br><span>One shared view.</span></h1><p class="lead">Connect one sensor per arm to compare movement side by side.</p><a href="./game.html">เล่นสวนพลังแขน · Arm Booster game →</a></div><button id="demo">Try two-arm demo</button></div>
+<p id="support" class="support" role="status"></p>
+<section id="arms" class="arms" aria-label="Left and right arm sensors"></section>
+<section class="card comparison"><div class="card-top"><h2>Compare movement</h2><span id="source">NO DATA SOURCE</span></div>
+<div class="comparison-controls"><label>Sensor axis <select id="axis"><option value="0">X · Roll</option><option value="1">Y · Pitch</option><option value="2">Z · Yaw</option></select></label><button id="zero" disabled>Set both neutral</button><button id="clearZero" disabled>Use raw angles</button><span id="reference">Raw sensor angles</span></div>
+<p>Mount sensors consistently. Reverse an arm’s comparison direction for opposite mounting. Neutral applies per-axis offsets; it is not anatomical calibration.</p>
+<div class="comparison-values"><div><small>Left arm</small><strong id="leftAngle">—</strong></div><div><small>Left − right · wrapped</small><strong id="difference">—</strong></div><div><small>Right arm</small><strong id="rightAngle">—</strong></div></div><p id="comparisonStatus" role="status">Connect both arms and wait for motion data.</p></section>
+<section class="card plot-card"><div class="card-top"><h2>Movement over time</h2><div class="legend"><span>━━ Left arm</span><span>┄┄ Right arm</span></div></div><p id="plotLabel">X · Roll · last 15 seconds</p><canvas id="chart" role="img" aria-label="Angle comparison for left and right arms"></canvas><p>Aligned by browser receive time, without hardware synchronization. Numeric comparison pauses when either sample is older than 500 ms or receive times differ by more than 150 ms.</p></section>
+<footer><span>Move together. See the difference.</span><p>Chrome / Edge · HTTPS or localhost. Data stays in this browser. Sensor-axis comparison, not a clinical symmetry score.</p><a href="https://www.wit-motion.com/index.php/WirelessInclinometer/17.html" target="_blank" rel="noreferrer">Sensor reference ↗</a></footer></main>
+<template id="armTemplate"><article class="card arm"><div class="card-top"><h2 data-field="title"></h2><span class="badge" data-field="badge" role="status">Disconnected</span></div>
+<p data-field="device">No sensor selected</p><p data-field="message" class="arm-message" aria-live="polite">Switch on the sensor, then choose a device.</p>
+<div class="controls"><button data-action="connect" class="primary">Scan & connect ↗</button><button data-action="disconnect" disabled>Disconnect</button><label class="check"><input data-field="allDevices" type="checkbox"> Show all Bluetooth devices</label></div>
+<label class="reverse"><input data-field="reverse" type="checkbox"> Reverse comparison direction</label>
+<div class="arm-stats"><div><small>Frames</small><strong data-field="count">0</strong></div><div><small>Rate</small><strong data-field="rate">—</strong></div><div><small>Last motion</small><strong data-field="age">—</strong></div><div><small>Stream</small><strong data-field="health">Idle</strong></div></div>
+<div class="reading"><h3>Orientation <span>° · X / Y / Z</span></h3><div class="values" data-field="angles"></div></div>
+<div class="reading"><h3>Acceleration <span>g · includes gravity</span></h3><div class="values" data-field="acceleration"></div></div>
+<div class="reading"><h3>Angular velocity <span>°/s</span></h3><div class="values" data-field="angularVelocity"></div></div>
+<details class="diagnostics"><summary>Diagnostics & additional data</summary><div class="controls"><button data-action="quaternion" disabled>Read quaternion</button><button data-action="magnetic" disabled>Read magnetic</button></div><pre data-field="extra">No register response yet.</pre><p data-field="extraAge">—</p><h3>Latest notification · hex</h3><pre data-field="raw">—</pre><h3>Session log</h3><pre data-field="log" role="log"></pre></details></article></template>
+<script type="module" src="./assets/app.js?v=20261103-3"></script></body></html>
